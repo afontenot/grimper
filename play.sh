@@ -68,6 +68,7 @@ tarball=$(echo ${info_arr[1]} | sed -e 's/^"//' -e 's/"$//')
 sha1=$(echo ${info_arr[2]} | sed -e 's/^"//' -e 's/"$//')
 vdate=$(echo ${info_arr[3]} | sed -e 's/^"//' -e 's/"$//')
 
+old_version="0"
 if [[ -f everest.version ]]; then
     old_version=$(<everest.version)
 fi
