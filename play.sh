@@ -114,7 +114,15 @@ if [[ -f everest.diff ]]; then
 fi
 
 echo "Building Everest from downloaded source."
-dotnet build --nologo --verbosity quiet "/p:Configuration=Release"
+if [[ -x "$(command -v dotnet)" ]]; then
+    dotnet build --nologo --verbosity quiet "/p:Configuration=Release"
+elif [[ -x "$(command -v msbuild)" ]]; then
+    msbuild Everest.sln -noLogo -verbosity:quiet -p:Configuration=Release
+else
+    echo "Build tools (dotnet / msbuild) not available!"
+    exit 1
+fi
+
 cd ../..
 
 echo "Copying built Everest files to Celeste overlayfs."
