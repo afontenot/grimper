@@ -124,7 +124,7 @@ class ModUpdater:
         self.__cached_update = None
         try:
             with open("disabledlevelsets.txt") as f:
-                self.__disabled_levelsets = set(f.readlines())
+                self.__disabled_levelsets = set([l.strip() for l in f])
         except FileNotFoundError:
             self.__disabled_levelsets = set()
 
@@ -204,6 +204,7 @@ class ModUpdater:
 
         # users can selectively disable levelsets included in some helpers
         if mod_name in self.__disabled_levelsets:
+            print(f"Disabling levelsets for {mod_name}...")
             mappath = dirpath.joinpath("Maps")
             targetpath = dirpath.joinpath("_Maps")
             if mappath.is_dir():
