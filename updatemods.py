@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import re
+from functools import partial
 from pathlib import Path
 from shutil import rmtree
 from time import time
@@ -10,9 +11,19 @@ from zipfile import ZipFile
 import requests
 from packaging import version
 from xxhash import xxh64
-from yaml import safe_load as loadyaml
+from yaml import load as _loadyaml
 
 
+# configure a safe yaml loader dynamically
+try:
+    from yaml import CSafeLoader as YamlLoader
+except ImportError:
+    from yaml import SafeLoader as YamlLoader
+
+loadyaml = partial(_loadyaml, Loader=YamlLoader)
+
+
+# constants
 BUF_SIZE = 64 * 1024
 UPDATE_LOCATION_URL = "https://everestapi.github.io/modupdater.txt"
 MIRROR_URL = "https://celestemodupdater.0x0a.de/banana-mirror/%d.zip"
@@ -121,62 +132,62 @@ def xxhsum(f):
 class ModUpdater:
     def __init__(self):
         self.dlr = RequestDownloader()
-        self.__cached_update = None
+        self.__cached_update_by_modname = dict()
+        self.__cached_update_by_gbid = dict()
         try:
             with open("disabledlevelsets.txt") as f:
-                self.__disabled_levelsets = set([l.strip() for l in f])
+                self.__disabled_levelsets = set([line.strip() for line in f])
         except FileNotFoundError:
             self.__disabled_levelsets = set()
 
-    @property
-    def update_data(self):
-        if not self.__cached_update:
-            print("Getting update data from servers...")
-            with requests.get(UPDATE_LOCATION_URL) as req:
-                req.raise_for_status()
-                update_url = req.text.strip()
-            with requests.get(update_url) as req:
-                req.raise_for_status()
-                print("Got update data, parsing yaml...")
-                self.__cached_update = loadyaml(req.text)
-        return self.__cached_update
+    def _download_update(self):
+        print("Getting update URL from server...")
+        with requests.get(UPDATE_LOCATION_URL) as req:
+            req.raise_for_status()
+            update_url = req.text.strip()
+        print("Got update URL, fetching update data...")
+        with requests.get(update_url, stream=True) as req:
+            req.raise_for_status()
+            resp = req.text
+        print("Got update data, parsing yaml...")
+        self.__cached_update_by_modname = loadyaml(resp)
+        for modname, data in self.__cached_update_by_modname.items():
+            data["Name"] = modname
+            if gbid := data.get("GameBananaId"):
+                self.__cached_update_by_gbid[gbid] = data
 
-    def get_mod_data(self, mod_name=None, mod_id=None):
-        for result_modname, moddata in self.update_data.items():
-            if (mod_id in (moddata["GameBananaId"], moddata["GameBananaFileId"])) or (
-                mod_name == result_modname
-            ):
-                moddata["Name"] = result_modname
-                return moddata
-        return None
+    def update_data_for_mod(self, modname):
+        if not self.__cached_update_by_modname:
+            self._download_update()
+        return self.__cached_update_by_modname.get(modname)
 
-    def update_mod(self, mod_name, save_path, mod_data):
-        if not mod_data:
-            mod_data = self.get_mod_data(mod_name)
-            if not mod_data:
-                print(f"Could not find {mod_name}!")
-                return False
+    def update_data_for_gbid(self, gbid):
+        if not self.__cached_update_by_gbid:
+            self._download_update()
+        return self.__cached_update_by_gbid.get(gbid)
+
+    def update_mod(self, modname, save_path, moddata):
         urls = [
-            mod_data["MirrorURL"],
-            mod_data["URL"],
+            moddata["MirrorURL"],
+            moddata["URL"],
         ]
 
         # FIXME: rare cases (Collab-2018-10) have multiple hashes; why?
-        xxhash = mod_data.get("xxHash")
+        xxhash = moddata.get("xxHash")
         if xxhash:
             assert len(xxhash) == 1
             xxhash = xxhash[0]
 
-        size = mod_data.get("Size")
+        size = moddata.get("Size")
 
-        filepath = save_path.joinpath(f"{mod_name}.zip")
+        filepath = save_path.joinpath(f"{modname}.zip")
         for url in urls:
             try:
-                self.dlr.download(url, mod_name, filepath, size)
+                self.dlr.download(url, modname, filepath, size)
                 break
             except requests.HTTPError:
                 continue
-            print(f"Could not download file {mod_name} from {urls}!")
+            print(f"Could not download file {modname} from {urls}!")
             return False
 
         if not filepath.exists():
@@ -191,11 +202,11 @@ class ModUpdater:
         else:
             print(f"Warning: no hash available for {filepath}!")
 
-        dirpath = save_path.joinpath(f"{mod_name}")
+        dirpath = save_path.joinpath(f"{modname}")
         if not dirpath.is_dir():
-            print(f"Note: {mod_name} has no existing version.")
+            print(f"Note: {modname} has no existing version.")
         else:
-            # print(f"Removing previous version of {mod_name}...")
+            # print(f"Removing previous version of {modname}...")
             rmtree(dirpath)
 
         dirpath.mkdir()
@@ -203,15 +214,17 @@ class ModUpdater:
             zf.extractall(dirpath)
 
         # users can selectively disable levelsets included in some helpers
-        if mod_name in self.__disabled_levelsets:
-            print(f"Disabling levelsets for {mod_name}...")
+        if modname in self.__disabled_levelsets:
+            print(f"Disabling levelsets for {modname}...")
             mappath = dirpath.joinpath("Maps")
             targetpath = dirpath.joinpath("_Maps")
             if mappath.is_dir():
                 if not targetpath.is_dir():
                     mappath.rename(targetpath)
                 else:
-                    print(f"Warning: {mappath} would be moved but target directory exists!")
+                    print(
+                        f"Warning: {mappath} would be moved but target directory exists!"
+                    )
 
         filepath.unlink()
         return True
@@ -238,21 +251,23 @@ class ModUpdater:
         print("Updating mods...")
         while wanted:
             modname = wanted.pop()
+            moddata = self.update_data_for_mod(modname)
             have.add(modname)
-
             needs_download = False
-            if modname in mods and modname in self.update_data:
+
+            if modname not in mods:
+                needs_download = True
+            elif moddata:
                 current_version = version.parse(mods[modname]["version"])
-                server_version = version.parse(self.update_data[modname]["Version"])
+                server_version = version.parse(moddata["Version"])
                 if server_version > current_version:
                     needs_download = True
-            elif modname not in mods:
-                needs_download = True
 
             if needs_download:
-                result = self.update_mod(
-                    modname, location, self.update_data.get(modname)
-                )
+                if not moddata:
+                    print(f"Could not find update data for {modname}!")
+                    break
+                result = self.update_mod(modname, location, moddata)
                 if not result:
                     break
                 yaml = get_mod_yaml(location / modname)
@@ -266,35 +281,35 @@ class ModUpdater:
                         wanted.add(depmodname)
 
     def download(self, location, identifier):
-        mod_data = None
+        moddata = None
         if identifier.isdigit():
-            mod_data = self.get_mod_data(mod_id=int(identifier))
+            moddata = self.update_data_for_gbid(int(identifier))
         elif identifier.startswith("https://gamebanana.com"):
             mod_id = get_id_from_url(identifier)
             if mod_id:
-                mod_data = self.get_mod_data(mod_id=mod_id)
+                moddata = self.update_data_for_gbid(identifier)
                 # try to download file directly when it's not on the mirrors yet
-                if not mod_data and "dl/" in identifier:
+                if not moddata and "dl/" in identifier:
                     print("File not in database, attempting direct download.")
-                    mod_data = {
+                    moddata = {
                         "Name": "fake_mod_download",
                         "MirrorURL": MIRROR_URL % mod_id,
                         "URL": identifier,
                     }
-                    result = self.update_mod("fake_mod_download", location, mod_data)
+                    result = self.update_mod("fake_mod_download", location, moddata)
                     mod_location = location / "fake_mod_download"
                     if result and mod_location.is_dir():
                         yaml = get_mod_yaml()
-                        real_mod_name = yaml["Name"]
-                        mod_location.replace(location / real_mod_name)
+                        real_modname = yaml["Name"]
+                        mod_location.replace(location / real_modname)
                         print("Mod installed.")
                     return
         else:
-            mod_data = self.get_mod_data(identifier)
+            moddata = self.update_data_for_mod(identifier)
 
-        if mod_data:
-            mod_name = mod_data["Name"]
-            self.update_mod(mod_name, location, mod_data)
+        if moddata:
+            modname = moddata["Name"]
+            self.update_mod(modname, location, moddata)
         else:
             print(f"Could not identify mod {identifier}!")
 
