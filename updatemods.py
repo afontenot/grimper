@@ -300,7 +300,7 @@ class ModUpdater:
                     result = self.update_mod("fake_mod_download", location, moddata)
                     mod_location = location / "fake_mod_download"
                     if result and mod_location.is_dir():
-                        yaml = get_mod_yaml()
+                        yaml = get_mod_yaml(mod_location)
                         real_modname = yaml["Name"]
                         mod_location.replace(location / real_modname)
                         print("Mod installed. Run an update to pull in any dependencies.")
