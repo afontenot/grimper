@@ -154,7 +154,8 @@ class ModUpdater:
         for modname, data in self.__cached_update_by_modname.items():
             data["Name"] = modname
             if gbid := data.get("GameBananaId"):
-                self.__cached_update_by_gbid[gbid] = data
+                if gbid not in self.__cached_update_by_gbid:
+                    self.__cached_update_by_gbid[gbid] = data
 
     def update_data_for_mod(self, modname):
         if not self.__cached_update_by_modname:
@@ -287,7 +288,7 @@ class ModUpdater:
         elif identifier.startswith("https://gamebanana.com"):
             mod_id = get_id_from_url(identifier)
             if mod_id:
-                moddata = self.update_data_for_gbid(identifier)
+                moddata = self.update_data_for_gbid(mod_id)
                 # try to download file directly when it's not on the mirrors yet
                 if not moddata and "dl/" in identifier:
                     print("File not in database, attempting direct download.")
@@ -302,14 +303,16 @@ class ModUpdater:
                         yaml = get_mod_yaml()
                         real_modname = yaml["Name"]
                         mod_location.replace(location / real_modname)
-                        print("Mod installed.")
+                        print("Mod installed. Run an update to pull in any dependencies.")
                     return
         else:
             moddata = self.update_data_for_mod(identifier)
 
         if moddata:
             modname = moddata["Name"]
-            self.update_mod(modname, location, moddata)
+            if self.update_mod(modname, location, moddata):
+                print("Mod installed. Run an update to pull in any dependencies.")
+
         else:
             print(f"Could not identify mod {identifier}!")
 
