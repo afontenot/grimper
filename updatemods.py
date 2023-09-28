@@ -325,8 +325,8 @@ def main():
     parser.add_argument(
         "-l",
         help="specify the location of your mods",
-        default="celeste/Mods",
-        metavar="celeste/Mods",
+        default="mods",
+        metavar="mods",
         type=Path,
     )
     subparsers = parser.add_subparsers(

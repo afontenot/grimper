@@ -46,16 +46,20 @@ Basic use of the scripts involves placing all these files in a directory of your
 
 ### Scripts:
 
- * `play.sh` handles everything except downloading mods. For basic use (installing Everest, updating Everest, running Celeste) you can just run the script and everything should happen automatically with prompts as necessary. The script also has several options:
+ * `play.sh` handles everything except downloading mods. To get started, you can simply run the script and everything should happen automatically with prompts as necessary. The script also has several options:
 
-   * `play.sh update` just tries to update Everest.
+   * `play.sh mount` mounts the overlayfs.
 
-   * `play.sh <name>` will use a Saves directory located in `./saves/<name>`, instead of the default location `./saves/default`. This is convenient for having grouped collections of save files which you use for different purposes. (Note that having `update` as an option means you are not allowed to have `update` as the name of a save file directory. I was too lazy to add proper argument handling to this script.)
+   * `play.sh update` tries to update Everest.
 
- * `updatemods.py` is pretty self-explanatory, thanks to `argparse`. There are two basic commands: `download` and `update`. Currently `update` always means update-all, and `download` can also be used to update an individual mod. You need to have mounted the overlay directories using `play.sh` before running this script - you can use `play.sh update` to do this without having to start and then quit out of Celeste.
+   * `play.sh -s <name>` will use a Saves directory located in `./saves/<name>`, instead of the default location `./saves/default`. This is convenient for having grouped collections of save files which you use for different purposes.
+
+   * `play.sh -m <name>` will start Celeste with only the specified mod (and its dependencies) enabled.
+
+ * `updatemods.py` is pretty self-explanatory. There are two basic commands: `download` and `update`. Currently `update` always means update-all, and `download` can be used to update an individual mod. You need to have mounted the overlay directories using `play.sh` before running this script.
 
 ## Requirements
 
 You'll need a Linux system (for overlayfs support), a Celeste installation that Everest can use (I've only tested the Itch.io build), common Linux tools like `curl`, the .NET Core runtime (to build Everest), and the Mono runtime (to run the Everest `MiniInstaller.exe`).
 
-It's probably possible to adjust the script to use the Mono build tools, or (vice versa) avoid the Mono runtime in favor of .NET, but I haven't worked on this. Note that both are open source software - no closed .NET components are needed.
+The script will attempt to use the Mono build tools (rather than dotnet) as a fallback if they are available, but this hasn't been tested. Official builds of Everest are done with the dotnet tools, so that's what play.sh does too.

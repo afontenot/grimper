@@ -8,7 +8,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 check_depends() {
-    notfound=""
+    local notfound=""
     for cmd in curl jq mono; do
         if [[ ! -x "$(command -v "$cmd")" ]]; then
             notfound="$notfound $cmd"
@@ -18,7 +18,7 @@ check_depends() {
         echo "Missing dependencies: $notfound."
         exit 1
     fi
-    buildtoolsfound="false"
+    local buildtoolsfound="false"
     for cmd in dotnet msbuild; do
         if [[ -x "$(command -v "$cmd")" ]]; then
             buildtoolsfound="true"
@@ -56,6 +56,7 @@ setup() {
     mkdir -p overlay
     mkdir -p buffer
     mkdir -p saves/default
+    mkdir -p mods
 
     # Everest tends to open basically every file in every mod
     # try to avoid running out of open file descriptors
@@ -77,21 +78,60 @@ setup() {
     fi
 }
 
-run_celeste () {
+# recursive function - links mod and all dependencies from mods/ to celeste/Mods/
+link_mod() {
+    if [[ -e "celeste/Mods/$1" ]]; then
+        return
+    fi
+    if [[ -d "mods/$1" ]]; then
+        ln -s "../../mods/$1" "celeste/Mods/$1"
+        if [[ -e "mods/$1/everest.yaml" ]]; then
+            grep -oP '(?<= - Name: )\w+' "mods/$1/everest.yaml" | while read -r modname; do
+                link_mod "$modname"
+            done
+        fi
+    fi
+}
+
+run_celeste() {
+    # clean up old links
+    for dir in celeste/Mods/*; do
+        if [[ -L "$dir" ]]; then
+            rm -r "$dir"
+        elif [[ -e "$dir/everest.yaml" || -e "$dir/everest.yml" ]]; then
+            # migrate
+            mv "$dir" mods/
+        fi
+    done
+    # symlink needed mods from mods dir
+    if [[ "$WANTED_MOD" != "" ]]; then
+        if [[ -d "mods/$WANTED_MOD" ]]; then
+            link_mod "$WANTED_MOD"
+        else
+            echo "Requested mod $WANTED_MOD is not available."
+            exit 1
+        fi
+    else
+        for dir in mods/*; do
+            if [[ -d "$dir" ]]; then
+                link_mod "$(basename "$dir")"
+            fi
+        done
+    fi
     export EVEREST_SAVEPATH
     ./celeste/Celeste
 }
 
 update_everest() {
     echo "Downloading release information for everest..."
-    version_info=$(curl -s "https://api.github.com/repos/EverestAPI/Everest/releases/latest" | jq ".tag_name,.tarball_url,.target_commitish,.published_at")
+    local version_info=$(curl -s "https://api.github.com/repos/EverestAPI/Everest/releases/latest" | jq ".tag_name,.tarball_url,.target_commitish,.published_at")
     readarray -t info_arr <<< "$version_info"
-    version=$(echo "${info_arr[0]}" | sed -e 's/^"//' -e 's/"$//')
-    tarball=$(echo "${info_arr[1]}" | sed -e 's/^"//' -e 's/"$//')
-    sha1=$(echo "${info_arr[2]}" | sed -e 's/^"//' -e 's/"$//')
-    vdate=$(echo "${info_arr[3]}" | sed -e 's/^"//' -e 's/"$//')
+    local version=$(echo "${info_arr[0]}" | sed -e 's/^"//' -e 's/"$//')
+    local tarball=$(echo "${info_arr[1]}" | sed -e 's/^"//' -e 's/"$//')
+    local sha1=$(echo "${info_arr[2]}" | sed -e 's/^"//' -e 's/"$//')
+    local vdate=$(echo "${info_arr[3]}" | sed -e 's/^"//' -e 's/"$//')
 
-    old_version="0"
+    local old_version="0"
     if [[ -f everest.version ]]; then
         old_version=$(<everest.version)
     fi
@@ -100,7 +140,7 @@ update_everest() {
         echo "Discovered version $version is not newer than old version $old_version."
         exit 0
     else
-        wantsupdate="n"
+        local wantsupdate="n"
         echo -n "Everest update is available. $old_version -> $version. Update now (y/N)? "
         read -r -n1 wantsupdate
         if [[ "$wantsupdate" != "y" ]]; then
@@ -121,7 +161,7 @@ update_everest() {
     echo "Building Everest"
 
     # set build string
-    internal_vers=${version##*-}
+    local internal_vers=${version##*-}
     sed -i "s/VersionString = \"0.0.0-dev\";/VersionString = \"$internal_vers-local-${sha1:0:5}\";/" Celeste.Mod.mm/Mod/Everest/Everest.cs
 
     # apply a patch to disable downloading the build artifact updates
@@ -188,7 +228,7 @@ while true; do
             continue
         ;;
         "-m"|"--mod")
-            WANTED_MOD="2"
+            WANTED_MOD="$2"
             shift 2
             continue
         ;;
@@ -219,4 +259,10 @@ for arg; do
 done
 
 setup
-run_celeste
+
+if [[ ! -f "./celeste/Celeste.Mod.mm.dll" ]]; then
+    update_everest
+    echo "Run this script again to play Celeste!"
+else
+    run_celeste
+fi
