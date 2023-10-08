@@ -149,7 +149,7 @@ update_everest() {
         fi
     fi
 
-    echo "Downloading version $version from Github. Hash is $sha1."
+    echo "Downloading version $version from Github. Commit is $sha1."
 
     cd everest
     curl -OL "$tarball"
