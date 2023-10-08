@@ -33,13 +33,13 @@ check_depends() {
 setup() {
     cd "$(dirname "$0")"
 
-    if [[ -f "root.sh" ]]; then
-        source root.sh
+    if [[ -L root ]]; then
+        CELESTE_ROOT="$(readlink -f root)"
     else
         echo -n "Provide the path to your Celeste installation: "
         read -r CELESTE_ROOT
         if [[ -d "$CELESTE_ROOT" ]]; then
-            echo 'CELESTE_ROOT="'"$CELESTE_ROOT"'"' > root.sh
+            ln -s "$CELESTE_ROOT" root
         else
             echo "Path $CELESTE_ROOT not found or not accessible."
             exit 1
