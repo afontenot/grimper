@@ -142,7 +142,7 @@ update_everest() {
     else
         local wantsupdate="n"
         echo -n "Everest update is available. $old_version -> $version. Update now (y/N)? "
-        read -r -n1 wantsupdate
+        read -r wantsupdate
         if [[ "$wantsupdate" != "y" ]]; then
             echo "Update declined, quitting."
             exit 0
