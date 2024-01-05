@@ -149,14 +149,15 @@ update_everest() {
         fi
     fi
 
-    echo "Downloading version $version from Github. Commit is $sha1."
+    echo "Cloning version $version from Github. Commit is $sha1."
 
     cd everest
-    curl -OL "$tarball"
-
-    echo "Extracting Everest"
-    tar xf "$version"
-    cd EverestAPI-Everest-"${sha1:0:7}"
+    mkdir "everest-$version-$sha1" && cd "everest-$version-$sha1"
+    git init -b dev
+    git remote add origin "https://github.com/EverestAPI/Everest.git"
+    git fetch --depth=1 origin "$sha1"
+    git -c advice.detachedHead=false checkout FETCH_HEAD
+    git -c advice.detachedHead=false submodule update --init --recursive --depth=1
 
     echo "Building Everest"
 
@@ -165,28 +166,45 @@ update_everest() {
     sed -i "s/VersionString = \"0.0.0-dev\";/VersionString = \"$internal_vers-local-${sha1:0:5}\";/" Celeste.Mod.mm/Mod/Everest/Everest.cs
 
     # apply a patch to disable downloading the build artifact updates
-    if [[ -f everest.diff ]]; then
-        patch -p1 everest.diff
+    if [[ -f ../../everest.diff ]]; then
+        patch -p1 < ../../everest.diff
+    else
+	echo "No Everest patch found, continuing"
     fi
 
     echo "Building Everest from downloaded source."
     if [[ -x "$(command -v dotnet)" ]]; then
-        dotnet build --nologo --verbosity quiet "/p:Configuration=Release"
+        dotnet publish --nologo --verbosity quiet "/p:Configuration=Release"
     elif [[ -x "$(command -v msbuild)" ]]; then
         msbuild Everest.sln -noLogo -verbosity:quiet -p:Configuration=Release
     fi
 
     cd ../..
 
+    echo "Removing unnecessary app hosts"
+    find everest/everest-"$version"-"$sha1"/MiniInstaller/bin/Release -iname '*osx*' -delete
+    find everest/everest-"$version"-"$sha1"/MiniInstaller/bin/Release -iname '*win*' -delete
+    find everest/everest-"$version"-"$sha1"/Celeste.Mod.mm/bin/Release -iname '*osx*' -prune -exec rm -r {} +
+    find everest/everest-"$version"-"$sha1"/Celeste.Mod.mm/bin/Release -iname '*win*' -prune -exec rm -r {} +
+    find everest/everest-"$version"-"$sha1"/Celeste.Mod.mm/bin/Release -iname '*macos*' -delete
+
     echo "Copying built Everest files to Celeste overlayfs."
-    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/MiniInstaller/bin/Release/*/* ./celeste
-    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/Celeste.Mod.mm/bin/Release/*/* ./celeste
+    cp -r everest/everest-"$version"-"$sha1"/MiniInstaller/bin/Release/*/publish/* ./celeste
+    cp -r everest/everest-"$version"-"$sha1"/Celeste.Mod.mm/bin/Release/*/publish/* ./celeste
 
     echo "Installing Everest..."
     cd ./celeste
-    mono MiniInstaller.exe
+
+    # FIXME? Everest bundles a runtime now instead of building a CIL image we can run with mono :-(
+    # Would love to find a way to disable this behavior
+    ./MiniInstaller-linux
 
     cd ..
+
+    # Tragically, builds are now too large to reasonably keep around by default
+    echo "Removing Everest build directory"
+    rm -rf everest/everest-"$version"-"$sha1"
+
     echo "$version" > everest.version
 }
 

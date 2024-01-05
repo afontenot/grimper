@@ -1,17 +1,17 @@
---- a/Celeste.Mod.mm/Mod/Everest/Everest.Flags.cs.old   2021-09-13 03:07:21.133160956 -0700
-+++ b/Celeste.Mod.mm/Mod/Everest/Everest.Flags.cs       2021-09-13 03:07:39.270064626 -0700
-@@ -67,7 +67,7 @@
+--- a/Celeste.Mod.mm/Mod/Everest/Everest.Flags.cs
++++ b/Celeste.Mod.mm/Mod/Everest/Everest.Flags.cs
+@@ -83,7 +83,7 @@ namespace Celeste.Mod {
+                 PreferThreadedGL = IsXNA;
  
                  SupportRuntimeMods = true;
-                 SupportRelinkingMods = true;
 -                SupportUpdatingEverest = true;
 +                SupportUpdatingEverest = false;
              }
  
          }
---- a/Celeste.Mod.mm/Mod/Core/CoreModuleSettings.cs.bak 2023-02-19 03:11:49.684515649 -0500
-+++ b/Celeste.Mod.mm/Mod/Core/CoreModuleSettings.cs     2023-02-19 03:11:57.691291895 -0500
-@@ -208,7 +208,7 @@
+--- a/Celeste.Mod.mm/Mod/Core/CoreModuleSettings.cs
++++ b/Celeste.Mod.mm/Mod/Core/CoreModuleSettings.cs
+@@ -217,7 +217,7 @@ namespace Celeste.Mod.Core {
  
          [SettingInGame(false)]
          [SettingIgnore] // TODO: Show as advanced setting.
