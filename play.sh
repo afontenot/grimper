@@ -169,9 +169,19 @@ update_everest() {
         patch -p1 everest.diff
     fi
 
+    # manually initialize submodules: caused by issues with 4465 build
+    # https://github.com/EverestAPI/Everest/issues/718
+    rm -r external && mkdir external && cd external
+    git clone https://github.com/MonoMod/MonoMod
+    git clone https://github.com/Popax21/NLua
+    cd MonoMod
+    git checkout 47cbea2  # hard coded, last changed month before 4465 release
+    git submodule update --init --recursive
+    cd ../..
+
     echo "Building Everest from downloaded source."
     if [[ -x "$(command -v dotnet)" ]]; then
-        dotnet build --nologo --verbosity quiet "/p:Configuration=Release"
+        dotnet publish --nologo --verbosity quiet "/p:Configuration=Release"
     elif [[ -x "$(command -v msbuild)" ]]; then
         msbuild Everest.sln -noLogo -verbosity:quiet -p:Configuration=Release
     fi
@@ -179,12 +189,12 @@ update_everest() {
     cd ../..
 
     echo "Copying built Everest files to Celeste overlayfs."
-    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/MiniInstaller/bin/Release/*/* ./celeste
-    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/Celeste.Mod.mm/bin/Release/*/* ./celeste
+    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/MiniInstaller/bin/Release/*/publish/* ./celeste
+    cp -r everest/EverestAPI-Everest-"${sha1:0:7}"/Celeste.Mod.mm/bin/Release/*/publish/* ./celeste
 
     echo "Installing Everest..."
     cd ./celeste
-    mono MiniInstaller.exe
+    mono MiniInstaller-Linux
 
     cd ..
     echo "$version" > everest.version
