@@ -246,7 +246,7 @@ class ModUpdater:
         wanted |= set(
             [dep["Name"] for mod in mods.values() for dep in mod["dependencies"]]
         )
-        have = {"Everest", "Celeste"}
+        have = {"Everest", "EverestCore", "Celeste"}
         wanted -= have
 
         print("Updating mods...")
