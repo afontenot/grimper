@@ -109,10 +109,8 @@ def get_mod_yaml(loc):
             return None
     with yamlpath.open() as f:
         yaml = loadyaml(f)
-        # we can only handle one mod per folder
-        assert len(yaml) == 1
-        yaml = yaml[0]
 
+    assert yaml
     return yaml
 
 
@@ -235,13 +233,12 @@ class ModUpdater:
         mods = {}
         for loc in filter(lambda x: x.is_dir(), Path(location).glob("*")):
             yaml = get_mod_yaml(loc)
-            if not yaml:
-                continue
-            mods[yaml["Name"]] = {
-                "path": loc,
-                "dependencies": yaml["Dependencies"],
-                "version": yaml["Version"],
-            }
+            for mod in yaml:
+                mods[mod["Name"]] = {
+                    "path": loc,
+                    "dependencies": mod["Dependencies"],
+                    "version": mod["Version"],
+                }
         wanted = set(mods.keys())
         wanted |= set(
             [dep["Name"] for mod in mods.values() for dep in mod["dependencies"]]
@@ -272,14 +269,12 @@ class ModUpdater:
                 if not result:
                     break
                 yaml = get_mod_yaml(location / modname)
-                if not yaml:
-                    print(f"Could not find manifest for downloaded mod {modname}!")
-                    break
-                for depmod in yaml["Dependencies"]:
-                    depmodname = depmod["Name"]
-                    if depmodname not in have and depmodname not in wanted:
-                        print(f"{modname} has new dependency {depmodname}")
-                        wanted.add(depmodname)
+                for mod in yaml:
+                    for depmod in mod["Dependencies"]:
+                        depmodname = depmod["Name"]
+                        if depmodname not in have and depmodname not in wanted:
+                            print(f"{modname} has new dependency {depmodname}")
+                            wanted.add(depmodname)
 
     def download(self, location, identifier):
         moddata = None
@@ -301,7 +296,13 @@ class ModUpdater:
                     mod_location = location / "fake_mod_download"
                     if result and mod_location.is_dir():
                         yaml = get_mod_yaml(mod_location)
-                        real_modname = yaml["Name"]
+                        if len(yaml) == 1:
+                            real_modname = yaml[0]["Name"]
+                        else:
+                            mnames = [mod["Name"] for mod in yaml if "DLL" not in mod]
+                            if len(mnames) > 1:
+                                print("Note: the manifest for {mod_id} contains multiple named mods. The first valid name {mnames[0]} will be used.")
+                            real_modname = mnames[0]
                         mod_location.replace(location / real_modname)
                         print("Mod installed. Run an update to pull in any dependencies.")
                     return
