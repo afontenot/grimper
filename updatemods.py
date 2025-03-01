@@ -166,8 +166,9 @@ class ModUpdater:
         return self.__cached_update_by_gbid.get(gbid)
 
     def update_mod(self, modname, save_path, moddata):
+        # Mirror URLs seem to have been removed as of September 2024
         urls = [
-            moddata["MirrorURL"],
+            moddata.get("MirrorURL", MIRROR_URL % moddata["GameBananaFileId"]),
             moddata["URL"],
         ]
 
