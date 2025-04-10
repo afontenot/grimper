@@ -86,7 +86,7 @@ link_mod() {
     if [[ -d "mods/$1" ]]; then
         ln -s "../../mods/$1" "celeste/Mods/$1"
         if [[ -e "mods/$1/everest.yaml" ]]; then
-            grep -oP '(?<= - Name: ).+' "mods/$1/everest.yaml" | while read -r modname; do
+            grep -oP '(?<= - Name: )[^\r\n]+' "mods/$1/everest.yaml" | while read -r modname; do
                 link_mod "$modname"
             done
         fi
