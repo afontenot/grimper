@@ -257,7 +257,7 @@ class ModUpdater:
             if modname not in mods:
                 needs_download = True
             elif moddata:
-                current_version = version.parse(mods[modname]["version"])
+                current_version = version.parse(str(mods[modname]["version"]))
                 server_version = version.parse(moddata["Version"])
                 if server_version > current_version:
                     needs_download = True
