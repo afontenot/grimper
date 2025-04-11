@@ -50,7 +50,9 @@ Basic use of the scripts involves placing all these files in a directory of your
 
    * `play.sh mount` mounts the overlayfs.
 
-   * `play.sh update` tries to update Everest.
+   * `play.sh update` updates Everest.
+
+   * `play.sh single` starts a menu to open Everest with a single modded map, with an isolated save directory for just this one map places in `./saves/`. As a result your mods load faster (because only the required dependencies are loaded), and you never have trouble finding the saves you use with a given map.
 
    * `play.sh -s <name>` will use a Saves directory located in `./saves/<name>`, instead of the default location `./saves/default`. This is convenient for having grouped collections of save files which you use for different purposes.
 

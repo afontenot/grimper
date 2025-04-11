@@ -122,6 +122,35 @@ run_celeste() {
     ./celeste/Celeste
 }
 
+addlinksave() {
+    if [[ ! -d "saves/$1" ]]; then
+        echo "Adding new save directory for $1"
+        mkdir -p "saves/$1/Saves"
+        ln -s "$PWD/saves/default/Saves/settings.celeste" "saves/$1/Saves/"
+        ln -s "$PWD/saves/default/Saves/modsettings-Everest.celeste" "saves/$1/Saves/"
+    fi
+}
+
+single() {
+    if [[ "$WANTED_MOD" == "" ]]; then
+        mapmods=()
+        map_i=1
+        for mod in $(find mods -maxdepth 2 -type d -name Maps | cut -d '/' -f2 | sort); do
+            mapmods+=("$mod")
+            # nested lookbehind seems silly, but matching start of line doen't work with BOM
+            modname=$(grep -oP '(?<=(?<! )- Name: )[^\r\n]+' "mods/$mod/everest.yaml")
+            echo "[$map_i] $modname"
+            map_i=$((map_i+1))
+        done
+        echo -n "Enter index of mod to load: "
+        read -r wantedmod_i
+        WANTED_MOD="${mapmods[$wantedmod_i-1]}"
+    fi
+
+    addlinksave "$WANTED_MOD"
+    EVEREST_SAVEPATH="$PWD/saves/$WANTED_MOD/"
+}
+
 update_everest() {
     echo "Downloading release information for everest..."
     local version_info=$(curl -s "https://api.github.com/repos/EverestAPI/Everest/releases/latest" | jq ".tag_name,.tarball_url,.target_commitish,.published_at")
@@ -217,6 +246,7 @@ Options:
 
 Parameters:
  * mount            :  mount the overlayfs directory, then quit
+ * single           :  play a single mod in an isolated save folder
  * update           :  update the Everest installation, then quit
 
 Running play.sh with no parameters will launch Celeste.
@@ -270,6 +300,8 @@ for arg; do
         setup
         update_everest
         exit 0
+    elif [[ "$arg" == "single" ]]; then
+        single
     else
         echo "Unrecognized command $arg."
         err_quit
