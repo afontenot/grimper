@@ -30,7 +30,7 @@ Potential users who don't really need the features I mentioned above would be be
 
 ## How do I use it
 
-The two scripts are **play.sh** and **updatemods.py**. Additional configuration files include **everest.diff** and **disabledlevelsets.txt**. Several others will automatically be created by the scripts.
+The two scripts are **play.sh** and **mods.py**. Additional configuration files include **everest.diff** and **disabledlevelsets.txt**. Several others will automatically be created by the scripts.
 
 Basic use of the scripts involves placing all these files in a directory of your choice that will serve as the base of the Everest installation. Then, you `cd` to the directory in your terminal, and run `play.sh` to install and configure Everest.
 
@@ -58,7 +58,7 @@ Basic use of the scripts involves placing all these files in a directory of your
 
    * `play.sh -m <name>` will start Celeste with only the specified mod (and its dependencies) enabled.
 
- * `updatemods.py` is pretty self-explanatory. There are two basic commands: `download` and `update`. Currently `update` always means update-all, and `download` can be used to update an individual mod. You need to have mounted the overlay directories using `play.sh` before running this script.
+ * `mods.py` is pretty self-explanatory. There are two basic commands: `download` and `update`. Currently `update` always means update-all, and `download` can also be used to update an individual mod. You need to have mounted the overlay directories using `play.sh` before running this script.
 
 ## Requirements
 
