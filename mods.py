@@ -237,7 +237,7 @@ class ModUpdater:
             for mod in yaml:
                 mods[mod["Name"]] = {
                     "path": loc,
-                    "dependencies": mod["Dependencies"],
+                    "dependencies": mod.get("Dependencies", []),
                     "version": mod["Version"],
                 }
         wanted = set(mods.keys())
