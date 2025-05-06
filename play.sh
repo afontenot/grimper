@@ -137,8 +137,11 @@ single() {
         map_i=1
         for mod in $(find mods -maxdepth 2 -type d -name Maps | cut -d '/' -f2 | sort); do
             mapmods+=("$mod")
-            # nested lookbehind seems silly, but matching start of line doen't work with BOM
-            modname=$(grep -oP '(?<=(?<! )- Name: )[^\r\n]+' "mods/$mod/everest.yaml")
+            # trying to parse even a single line of yaml with Unix tools is a mess:
+            #   * first line of file can start with BOM
+            #   * the first manifest key is not guaranteed to be `Name`
+            #   * we can't match through the end of line because `\r` will be included by GNU grep
+            modname=$(grep -oP -m1 '(?<=(?<! - )Name: )[^\r\n]+' "mods/$mod/everest.yaml")
             echo "[$map_i] $modname"
             map_i=$((map_i+1))
         done
